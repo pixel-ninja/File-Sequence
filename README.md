@@ -43,5 +43,5 @@ Get-Sequence | Add-Sequence-Output -directory "." -pad "" -extension "mp4" | Enc
 
 ```powershell
 # Convert sequences with (h)oiiotool
-Get-Sequence | Add-Sequence-Output -suffix ".sRGB" | Convert-Sequence -oiio_args --ociodisplay "sRGB - Display" "ACES 1.0 - SDR Video"
+Get-Sequence | Add-Sequence-Output -suffix ".sRGB" | Convert-Sequence -oiio_args '--ociodisplay "sRGB - Display" "ACES 1.0 - SDR Video"'
 ``
