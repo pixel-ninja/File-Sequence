@@ -6,6 +6,7 @@ In its current state it's mainly useful for frame checking, to make sure a seque
 
 # Installation
 Clone into your Powershell Modules folder.
+
 Usually C:\Users\USERNAME\Powershell\Modules
 
 # Usage
@@ -13,6 +14,14 @@ Usually C:\Users\USERNAME\Powershell\Modules
 ### Find File Sequences
 ```powershell
 Get-Sequence -Recurse | Format-Table
+```
+
+### Using Filters
+```powershell
+Get-Sequence .\ -Recurse -Include *Final_Final*
+```
+```powershell
+Get-Sequence .\ -Recurse -Exclude *v001*,*v007*,*proxy*
 ```
 
 ### Check Specific Sequence
