@@ -29,6 +29,13 @@ Get-Sequence .\ -Recurse -Exclude *v001*,*v007*,*proxy*
 Get-Sequence ".\path\to\sequence.%04d.exr"
 ```
 
+### Custom Search Function
+```powershell
+# Pass an array of filepaths to ConvertFrom-Paths
+# Using fd is significantly faster than Get-Sequence
+  , @(fd "\.\d{4,}\." -e exr) | ConvertFrom-Paths
+```
+
 ### Play Sequences
 ```powershell
 # Open sequences in DJV
