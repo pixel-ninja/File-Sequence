@@ -11,20 +11,21 @@
 #>
 
 $SEQ_PATTERN = '' +
-	'\A' +                        # start of line
-	'(?<dirname>(?:.*[/\\])?)' +  # dirname
-	'(?<basename>(?:.*[_\.])?)' + # basename
-	'(?<frame>\d+)?' +            # frame
-	'(?<extension>' +
-	'(?:\.\w*[a-zA-Z]\w?)*' +     # optional leading alnum ext prefix (.foo.1bar)
-	'(?:\.[^.]+)?' +              # ext suffix
-	')' +
-	'\Z'                          # end of line
+'\A' +                        # start of line
+'(?<dirname>(?:.*[/\\])?)' +  # dirname
+'(?<basename>(?:.*[_\.])?)' + # basename
+'(?<frame>\d+)?' +            # frame
+'(?<extension>' +
+'(?:\.\w*[a-zA-Z]\w?)*' +     # optional leading alnum ext prefix (.foo.1bar)
+'(?:\.[^.]+)?' +              # ext suffix
+')' +
+'\Z'                          # end of line
 
 $SEQ_REGEX = [regex]::new($SEQ_PATTERN, "Compiled")
 
 
-function Concat-Frames  {
+function Concat-Frames
+{
 	<#
 		.SYNOPSIS
 			Takes an array of frame numbers and returns a shortened string representation.
@@ -43,18 +44,24 @@ function Concat-Frames  {
 	$result = ""
 	$lastValue = -1
 	$continuing = $false
-	foreach ( $frame in $frames ) {
-		if ( $lastValue -eq -1 ) {
+	foreach ( $frame in $frames )
+	{
+		if ( $lastValue -eq -1 )
+		{
 			# First frame
 			$result = "$frame"
-		} elseif ( $frame -eq $lastValue + 1 ) {
+		} elseif ( $frame -eq $lastValue + 1 )
+		{
 			# Continuing Sequence
 			$continuing = $true
-		} else {
+		} else
+		{
 			# Broken Range
-			if ( $continuing ) {
+			if ( $continuing )
+			{
 				$result = "$result-$lastValue,$frame"
-			} else {
+			} else
+			{
 				$result = "$result,$frame"
 			}
 
@@ -65,7 +72,8 @@ function Concat-Frames  {
 	}
 
 	# Append last frame if last range is unbroken
-	if ( $continuing ) {
+	if ( $continuing )
+	{
 		$result = "$result-$lastValue"
 	}
 
@@ -73,7 +81,8 @@ function Concat-Frames  {
 }
 
 
-function Format-SequencePath {
+function Format-SequencePath
+{
 	<#
 		.SYNOPSIS
 			Takes a path string with a frame number or frame placeholder and returns that string with a frame
@@ -129,31 +138,39 @@ function Format-SequencePath {
 	$name = Split-Path $path -Leaf
 	$basename = Split-Path $path -LeafBase
 
-	if ($PSBoundParameters.ContainsKey('directory') -eq $false) {
+	if ($PSBoundParameters.ContainsKey('directory') -eq $false)
+	{
 		$directory = $input_directory
 	}
 
-	if ($PSBoundParameters.ContainsKey('extension') -eq $false) {
+	if ($PSBoundParameters.ContainsKey('extension') -eq $false)
+	{
 		$extension = Split-Path $path -Extension
-	} elseif (!$extension.StartsWith('.')) {
+	} elseif (!$extension.StartsWith('.'))
+	{
 		$extension = ".$extension"
 	}
 
-	if( $name -match '([_\.])([\d#]+)\.' ) {
+	if( $name -match '([_\.])([\d#]+)\.' )
+	{
 		# Matches 1234, #### style frames
 		$pad_amount = $matches[2].length
-	} elseif ($name -match '([_\.])(\%\d{1,2}d)\.') {
+	} elseif ($name -match '([_\.])(\%\d{1,2}d)\.')
+	{
 		# Matches %04d style frames
 		$pad_amount = [int]$matches[2].Substring(1,2)
-	} else {
+	} else
+	{
 		# No frame found
 		return $path
 	}
 	
 	$placeholder = ''
-	if ( $pad -eq '%' ) {
+	if ( $pad -eq '%' )
+	{
 		$placeholder = "$($matches[1])%0$($pad_amount)d"
-	} elseif ($pad -ne '') {
+	} elseif ($pad -ne '')
+	{
 		$placeholder +=  "$($matches[1])$("$pad" * $pad_amount)"
 	}
 
@@ -162,7 +179,8 @@ function Format-SequencePath {
 }
 
 
-function FrameInfo-From-ConcatFrames {
+function FrameInfo-From-ConcatFrames
+{
 	<#
 		.SYNOPSIS
 			Convert a concatenated list of frames to an object with frame information.
@@ -172,13 +190,16 @@ function FrameInfo-From-ConcatFrames {
 		[String]
 		$Frames
 	)
-	Process {
+	Process
+	{
 		$split = $Frames -split {$_ -eq '-' -or $_ -eq ','}
-		if ($split.Length -eq $Frames.Length) {
+		if ($split.Length -eq $Frames.Length)
+		{
 			$first = [int]$Frames
 			$last = [int]$Frames
 			$count = 1
-		}else{
+		} else
+		{
 			$first = [int]$split[0]
 			$last = [int]$split[-1]
 			# TODO: count frames properly
@@ -191,19 +212,14 @@ function FrameInfo-From-ConcatFrames {
 }
 
 
-function Get-Sequence {
+function Get-Sequence
+{
 	<#
 		.SYNOPSIS
 			Wrapper around Get-ChildItem that finds file sequences from a given path.
 			Can also accept a file path or file path pattern to find specific sequence or sequences.
 		.OUTPUTS
-			Returns a pscustomobject consisting of the following properties:
-				string Path - A relative filepath of the file sequence with %04d style frame placeholder
-				string Frames - A concatenated list of frame numbers, ranges denoted by dashes and multiple
-					ranges separated by commas. i.e. 1-10,15-20
-				int First - The first frame number
-				int Last - The last frame number
-				int Count - The total number of frames
+			An array of file sequences.
 	#>
 
 	[OutputType([Object[]])]
@@ -231,39 +247,73 @@ function Get-Sequence {
 	# Allows for $path to be a specific sequence as long as frames all have the same padding.
 	$PSBoundParameters['path'] = (Format-SequencePath $path '?')
 
+	, @(Get-ChildItem @PSBoundParameters | Where-Object { $SEQ_REGEX.Matches($_.FullName).Success  } ) | ConvertFrom-Paths
+}
+
+function ConvertFrom-Paths
+{
+	<#
+		.SYNOPSIS
+			Takes an array of paths and returns an array of file sequences.
+			Can also accept a file path or file path pattern to find specific sequence or sequences.
+		.OUTPUTS
+			Returns a pscustomobject consisting of the following properties:
+				string Path - A relative filepath of the file sequence with %04d style frame placeholder
+				string Frames - A concatenated list of frame numbers, ranges denoted by dashes and multiple
+					ranges separated by commas. i.e. 1-10,15-20
+				int First - The first frame number
+				int Last - The last frame number
+				int Count - The total number of frames
+	#>
+	[OutputType([Object[]])]
+	param(
+		[Parameter(Mandatory=$true, ValueFromPipeline=$true)]
+		[string[]]
+		$paths
+	)
+
 	$sequences = @{}
-	foreach ( $file in Get-ChildItem @PSBoundParameters | where { ! $_.PSIsContainer } | Sort-Object ) {
-		$match = $SEQ_REGEX.Matches($file)
-		if(! $match.Success ){ continue }
+	foreach ( $path in $paths | Sort-Object  )
+	{
+		$match = $SEQ_REGEX.Matches($path)
+		if (! $match.Success )
+		{
+			continue
+		}
 
 		$placeholder = "%0{0}d" -f $match[0].Groups['frame'].Length
 		$sequence_path = "$($match[0].Groups['dirname'])$($match[0].Groups['basename'])$placeholder$($match[0].Groups['extension'])"
 		
-		if ( $sequences.ContainsKey($sequence_path) ) {
-			$sequences[$sequence_path] += "$($match[0].Groups['frame'])"
-		} else {
+		if ( $sequences.ContainsKey($sequence_path) )
+		{
+			$sequences[$sequence_path] += "$($match[0].Groups['frame'])" 
+		} else
+		{
 			$sequences[$sequence_path] = @("$($match[0].Groups['frame'])")
 		}
 	}
 
 	$result = @()
-
-	foreach ($h in ($sequences.GetEnumerator() | sort -Property name)){
-		$relative_path = $h.Name.Replace("$(Get-Location)", '.')
-		$concat_frames = Concat-Frames($h.Value)
+	foreach ($sequence in ($sequences.GetEnumerator() | Sort-Object -Property name))
+	{
+		$relative_path = $sequence.Name.Replace("$(Get-Location)", '.')
+		$concat_frames = Concat-Frames($sequence.Value)
 		$result += , [pscustomobject]@{
 			Path="$relative_path";
 			Frames=$concat_frames;
-			First=[int]$h.Value[0];
-			Last=[int]$h.Value[-1];
-			Count=$h.Value.Length }
+			First=[int]$sequence.Value[0];
+			Last=[int]$sequence.Value[-1];
+			Count=$sequence.Value.Length 
+		}
 	}
 
 	$result
+	
 }
 
 
-function Add-Sequence-Output {
+function Add-Sequence-Output
+{
 	<#
 		.SYNOPSIS
 			A wrapper around Format-SequencePath to add an output path property to a sequence object.
@@ -295,10 +345,13 @@ function Add-Sequence-Output {
 		$directory
 	)
 
-	Process {
+	Process
+	{
 		$params = @{}
-		foreach ($param in $PSBoundParameters.GetEnumerator()) {
-			if ($param.key -eq 'Input' ) {
+		foreach ($param in $PSBoundParameters.GetEnumerator())
+		{
+			if ($param.key -eq 'Input' )
+			{
 				continue
 			}
 
@@ -311,7 +364,8 @@ function Add-Sequence-Output {
 	}
 }
 
-function Convert-Sequence {
+function Convert-Sequence
+{
 	<#
 		.SYNOPSIS
 			A wrapper to pass sequence objects to (h)oiiotool for image conversion.
@@ -340,7 +394,8 @@ function Convert-Sequence {
 		$oiio_args
 	)
 
-	Process {
+	Process
+	{
 		$process = Start-Process hoiiotool -ArgumentList "$Path",--frames,$Frames,$oiio_args,-v,-o,"$Output" -NoNewWindow -Wait
 
 		#& hoiiotool "$Path" --frames $Frames -v -o "$Output" *>&1 | Out-Host
@@ -352,7 +407,8 @@ function Convert-Sequence {
 }
 
 
-function Encode-Sequence {
+function Encode-Sequence
+{
 	<#
 		.SYNOPSIS
 			A wrapper to pass sequence objects to ffmpeg for video encoding.
@@ -383,7 +439,8 @@ function Encode-Sequence {
 		$ffmpeg_args
 	)
 
-	Process {
+	Process
+	{
 		# TODO: Implement range (i.e. First - Last) to allow for range editing
 		Start-Process ffmpeg -ArgumentList '-y',-r,$framerate,-start_number,$First,-i,"`"$Path`"",$ffmpeg_args,"`"$Output`"" -NoNewWindow -Wait
 
@@ -394,7 +451,8 @@ function Encode-Sequence {
 
 # Preset Wrappers
 
-function Sequence-To-sRGB {
+function Sequence-To-sRGB
+{
 	<#
 		.SYNOPSIS
 			Helper function to simplify the conversion of file linear ACES image sequences to sRGB.
@@ -415,14 +473,17 @@ function Sequence-To-sRGB {
 		[switch]
 		$parallel
 	)
-	Process{
+	Process
+	{
 		$oiio_args =  '-a --iscolorspace "scene_linear" --ociodisplay:subimages=-matte,-N,-depth "sRGB - Display" "ACES 1.0 - SDR Video"'
 		#$oiio_args =  '-a --ociodisplay "sRGB - Display" "ACES 1.0 - SDR Video"'
-		if ($Preset -eq 'exr'){
+		if ($Preset -eq 'exr')
+		{
 			$oiio_args += ' --compression dwab:85'
 		}
 
-		if($parallel) {
+		if($parallel)
+		{
 			$oiio_args += ' --parallel-frames'
 		}
 
@@ -431,7 +492,8 @@ function Sequence-To-sRGB {
 }
 
 
-function Sequence-To-MP4 {
+function Sequence-To-MP4
+{
 	<#
 		.SYNOPSIS
 			Helper function to simplify the encoding of an image sequence to h624, mp4 video.
@@ -448,13 +510,15 @@ function Sequence-To-MP4 {
 		[string]
 		$Framerate = '25'
 	)
-	Process {
+	Process
+	{
 		$Input | Add-Sequence-Output -pad '' -directory '.' -extension 'mp4' | Encode-Sequence -framerate $Framerate -ffmpeg_args '-pix_fmt yuv420p -vf "scale=width=ceil(iw/2)*2:height=ceil(ih/2)*2:in_color_matrix=bt709:out_color_matrix=bt709" -c:v libx264 -preset slower -crf 18 -color_range tv -colorspace bt709 -color_primaries bt709 -color_trc iec61966-2-1 -movflags faststart'
 	}
 }
 
 
-function View-Sequence {
+function View-Sequence
+{
 	<#
 		.SYNOPSIS
 			Opens file sequence in DJV.
@@ -465,7 +529,8 @@ function View-Sequence {
 		[object]
 		$Input
 	)
-	Process {
+	Process
+	{
 		# djv doesn't like %04d style naming
 		$path = Format-SequencePath $Input.path -pad '#'
 
